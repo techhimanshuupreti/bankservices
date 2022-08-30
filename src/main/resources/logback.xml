@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<logger name="org.hibernate" level="INFO" />
+	<logger name="org.mongodb" level="INFO" />
+	<logger name="com.castler" level="DEBUG" />
+
+	<property name="DIRECTORY" value="/home/Properties/logs" />
+	<contextName>${HOSTNAME}</contextName>
+	<timestamp key="year" datePattern="yyyy" />
+	<timestamp key="month" datePattern="MM" />
+	<timestamp key="date" datePattern="dd" />
+
+	<appender name="FILE"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<!-- <file>${DIRECTORY}/castler_${HOSTNAME}.out</file> -->
+		<file>${DIRECTORY}/bank_services.out</file>
+		<rollingPolicy
+			class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			rollover daily
+			<!-- <fileNamePattern>${DIRECTORY}/%d{yyyy/MM/dd, aux}/castlerLog_${HOSTNAME}-%d{yyyy-MM-dd}.%i.out -->
+			<fileNamePattern>${DIRECTORY}/%d{yyyy/MM/dd, aux}/bank_services-%d{yyyy-MM-dd}.%i.out
+			</fileNamePattern>
+			<maxFileSize>500MB</maxFileSize>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d{yy-MM-dd HH:mm:ss.SSS} %X{RANDOM_ID} %-5level %class{36}.%M %L - %msg%n
+			</pattern>
+		</encoder>
+	</appender>
+	<appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE" />
+        <includeCallerData>true</includeCallerData>
+        <queueSize>5000</queueSize>
+        <maxFlushTime>0</maxFlushTime>        
+    </appender>
+	<root level="info">
+		<appender-ref ref="ASYNC" />
+	</root>
+</configuration>
