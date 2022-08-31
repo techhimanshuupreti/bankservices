@@ -46,6 +46,7 @@ import com.bankservices.requests.WallexUserBusinessDetailsRequest;
 import com.bankservices.requests.WallexUserOnboardingDocumentsRequest;
 import com.bankservices.requests.WallexUserOnboardingKycRequest;
 import com.bankservices.response.WalleUserSignupResponse;
+import com.bankservices.response.WallexDepositResponse;
 import com.bankservices.respositories.WallexApiRespository;
 import com.bankservices.utils.CommonConstants;
 import com.bankservices.utils.DocumentType;
@@ -202,7 +203,7 @@ public class WallexDataServices {
 						&& signupApiResponse.getStatusCode().value() == HttpStatus.OK.value()) {
 					logger.info("user signup wallex api status success and response. " + signupApiResponse.getBody());
 					ResponseModel responseModal = new ResponseModel();
-					responseModal.setResult(convertToWalleUserSignupResponse(signupApiResponse.getBody()));
+					responseModal.setResult(convertToWallexUserSignupResponse(signupApiResponse.getBody()));
 					responseModal.setErrorMessage("");
 					responseModal.setErrors(new ArrayList<>());
 					return new ResponseEntity<ResponseModel>(responseModal, HttpStatus.OK);
@@ -304,7 +305,7 @@ public class WallexDataServices {
 						responseModel.setErrors(null);
 						checkingMissingFields.remove("status");
 						logger.info("personalDetailsApiResponse remove = " + checkingMissingFields);
-						responseModel.setResult(convertToWalleUserSignupResponse(checkingMissingFields.toString()));
+						responseModel.setResult(convertToWallexUserSignupResponse(checkingMissingFields.toString()));
 						return new ResponseEntity<ResponseModel>(responseModel,
 								personalDetailsApiResponse.getStatusCode());
 
@@ -411,7 +412,7 @@ public class WallexDataServices {
 						responseModel.setErrors(null);
 						checkingMissingFields.remove("status");
 						logger.info("businessDetailsApiResponse remove = " + checkingMissingFields);
-						responseModel.setResult(convertToWalleUserSignupResponse(checkingMissingFields.toString()));
+						responseModel.setResult(convertToWallexUserSignupResponse(checkingMissingFields.toString()));
 						return new ResponseEntity<ResponseModel>(responseModel,
 								businessDetailsApiResponse.getStatusCode());
 
@@ -784,7 +785,7 @@ public class WallexDataServices {
 	}
 
 	// mapping between signup api response to api Wallex User Signup Response
-	public WalleUserSignupResponse convertToWalleUserSignupResponse(String responseData) {
+	public WalleUserSignupResponse convertToWallexUserSignupResponse(String responseData) {
 		logger.info("InSide Class Name :- " + getClass() + ", Method :- "
 				+ new Throwable().getStackTrace()[0].getMethodName());
 
@@ -917,9 +918,9 @@ public class WallexDataServices {
 			if (wallexWebhookDTO.getResource().equals(WallexWebhookTypeConstants.USER.getValue())) {
 				return getUserByResourceId(wallexWebhookDTO);
 			} else if (wallexWebhookDTO.getResource().equals(WallexWebhookTypeConstants.COLLECTION.getValue())) {
-//				return getCollectionByResourceId(wallexWebhookDTO);
+				return getCollectionByResourceId(wallexWebhookDTO);
 			} else if (wallexWebhookDTO.getResource().equals(WallexWebhookTypeConstants.SIMPLE_PAYMENT.getValue())) {
-//				return getTransferByResourceId(wallexWebhookDTO);
+				return getTransferByResourceId(wallexWebhookDTO);
 			}
 			return null;
 		} catch (Exception e) {
@@ -945,8 +946,7 @@ public class WallexDataServices {
 
 			ResponseEntity<ResponseModel> token = generateWallexApiToken();
 
-			if (token != null && token.getStatusCode().value() == HttpStatus.OK.value()
-					&& !StringUtils.isNullOrEmpty(wallexWebhookDTO.getResourceId())) {
+			if (token != null && token.getStatusCode().value() == HttpStatus.OK.value()) {
 				logger.info(
 						"token api has success response -> " + token.getBody() + " , code " + token.getStatusCode());
 				HttpHeaders headers = new HttpHeaders();
@@ -968,7 +968,7 @@ public class WallexDataServices {
 					JSONObject jsonObj = new JSONObject(responseWebhookUser.getBody());
 					logger.info("responseWebhookUser :- " + jsonObj.toString());
 					ResponseModel responseModal = new ResponseModel();
-					responseModal.setResult(convertToWalleUserSignupResponse(responseWebhookUser.getBody()));
+					responseModal.setResult(convertToWallexUserSignupResponse(responseWebhookUser.getBody()));
 					responseModal.setErrorMessage("");
 					responseModal.setErrors(new ArrayList<>());
 					return new ResponseEntity<ResponseModel>(responseModal, HttpStatus.OK);
@@ -1003,18 +1003,43 @@ public class WallexDataServices {
 		logger.info("InSide Class Name :- " + getClass() + ", Method :- "
 				+ new Throwable().getStackTrace()[0].getMethodName());
 
-		String webhookUserUrl = "";
+		String webhookTransferUrl = "";
 		String request = "";
 		String response = "";
 		try {
-			webhookUserUrl = propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_BASE_URL.getValue())
-					+ propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_GET_USER_URL.getValue());
-			webhookUserUrl += wallexWebhookDTO.getResourceId();
-			webhookUserUrl += "?onBehalfOfAccount=" + transfer.getMerchant().getWallexAccountId();
+			webhookTransferUrl = propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_BASE_URL.getValue())
+					+ propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_GET_TRANSFER_URL.getValue());
+			webhookTransferUrl += wallexWebhookDTO.getResourceId();
+//			webhookUserUrl += "?onBehalfOfAccount=" + transfer.getMerchant().getWallexAccountId(); ??
+			
 			ResponseEntity<ResponseModel> token = generateWallexApiToken();
-			if (token != null && token.getStatusCode().value() == HttpStatus.OK.value()
-					&& !StringUtils.isNullOrEmpty(wallexWebhookDTO.getResourceId())) {
+			if (token != null && token.getStatusCode().value() == HttpStatus.OK.value()) {
 				logger.info("token api has success response -> " + token.getBody() + " , code " + token.getStatusCode());
+			
+				HttpHeaders headers = new HttpHeaders();
+				headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+				headers.setContentType(MediaType.APPLICATION_JSON);
+				headers.set("x-api-key",
+						propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_X_API_KEY.getValue()));
+				headers.set("Authorization", token.getBody().getResult().toString());
+
+				HttpEntity<?> entity = new HttpEntity<Object>(headers);
+
+				ResponseEntity<String> transferResponse = restTemplate.exchange(webhookTransferUrl, HttpMethod.GET, entity, String.class);
+
+				logger.info("Collection Response by resource Id :- " + transferResponse);
+				
+				
+				if(transferResponse.getStatusCodeValue() == HttpStatus.OK.value()) {
+					logger.info("Success transfer webhook");
+					ResponseModel rm = new ResponseModel();
+					rm.setResult(transferResponse.getBody());
+					new ResponseEntity<>(rm, HttpStatus.OK);
+				}else {
+					logger.info("Unsuccess transfer webhook");
+					return mappedErrorWithResponseModal(transferResponse.getBody(), transferResponse.getStatusCode(),
+							Arrays.asList(), "internal");
+				}
 			}
 			
 			
@@ -1023,7 +1048,7 @@ public class WallexDataServices {
 					Arrays.asList(), "internal");
 		} catch (HttpClientErrorException httpClentErrorEx) {
 			logger.error("Error HttpClientErrorException -> " + httpClentErrorEx.getResponseBodyAsString());
-			saveApiCallInDatabase(webhookUserUrl, request, httpClentErrorEx.getResponseBodyAsString(),
+			saveApiCallInDatabase(webhookTransferUrl, request, httpClentErrorEx.getResponseBodyAsString(),
 					httpClentErrorEx.getStatusCode().value());
 			return mappedErrorWithResponseModal(httpClentErrorEx.getResponseBodyAsString(),
 					httpClentErrorEx.getStatusCode(), Arrays.asList(), "");
@@ -1033,4 +1058,80 @@ public class WallexDataServices {
 					Arrays.asList(), "Exception");
 		}
 	}
+	
+	/**
+	 * This webhook is used for deposit.
+	 * */
+	private ResponseEntity<ResponseModel> getCollectionByResourceId(WallexWebhookDTO wallexWebhookDTO) {
+		logger.info("InSide Class Name :- " + getClass() + ", Method :- "
+				+ new Throwable().getStackTrace()[0].getMethodName());
+		String webhookCollectionUrl = "";
+		String request = "";
+		String response = "";
+		try {
+			webhookCollectionUrl = propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_BASE_URL.getValue())
+					+ propertiesManager.getSystemProperty(WallexUrlContant.WALLEX_GET_COLLECTION_URL.getValue());
+			webhookCollectionUrl += wallexWebhookDTO.getResourceId();
+			
+			ResponseEntity<ResponseModel> token = generateWallexApiToken();
+			if (token != null && token.getStatusCode().value() == HttpStatus.OK.value()) {
+				
+			logger.info("token api has unsuccess response -> " + token.getBody() + " , code " + token.getStatusCode());
+			
+			HttpHeaders headers = new HttpHeaders();
+			headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.set("x-api-key",propertiesManager
+									.getSystemProperty(
+											WallexUrlContant.WALLEX_X_API_KEY.getValue()));
+			
+			headers.set("Authorization", token.getBody().getResult().toString());
+
+			HttpEntity<?> entity = new HttpEntity<Object>(headers);
+
+			ResponseEntity<String> collectionResponse = restTemplate.exchange(webhookCollectionUrl, HttpMethod.GET, entity, String.class);
+
+			logger.info("Collection Response by resource Id :- " + collectionResponse);
+			if(collectionResponse.getStatusCodeValue() == HttpStatus.OK.value()) {
+				logger.info("Success transfer webhook");
+				ResponseModel rm = new ResponseModel();
+				rm.setResult(convertToWallexDepositResponse(collectionResponse.getBody()));
+				new ResponseEntity<>(rm, HttpStatus.OK);
+			}else {
+				logger.info("Unsuccess transfer webhook");
+				return mappedErrorWithResponseModal(collectionResponse.getBody(), collectionResponse.getStatusCode(),
+						Arrays.asList(), "internal");
+			}
+			}
+			return mappedErrorWithResponseModal(token.getBody().getErrorMessage(), token.getStatusCode(),
+					Arrays.asList(), "internal");
+		}catch (HttpClientErrorException httpClentErrorEx) {
+			logger.error("Error HttpClientErrorException -> " + httpClentErrorEx.getResponseBodyAsString());
+			saveApiCallInDatabase(webhookCollectionUrl, request, httpClentErrorEx.getResponseBodyAsString(),
+					httpClentErrorEx.getStatusCode().value());
+			return mappedErrorWithResponseModal(httpClentErrorEx.getResponseBodyAsString(),
+					httpClentErrorEx.getStatusCode(), Arrays.asList(), "");
+		} catch (Exception e) {
+			logger.error("Error -> " + e);
+			return mappedErrorWithResponseModal(ResponseMessage.WALLEX_KYC_NOT_DONE.getValue(), HttpStatus.BAD_REQUEST,
+					Arrays.asList(), "Exception");
+		}
+	}
+	
+	
+	// mapping between signup api response to api Wallex User Signup Response
+		public WallexDepositResponse convertToWallexDepositResponse(String responseData) {
+			logger.info("InSide Class Name :- " + getClass() + ", Method :- "
+					+ new Throwable().getStackTrace()[0].getMethodName());
+
+			try {
+				ObjectMapper objectMapper = new ObjectMapper();
+				WallexDepositResponse WallexDepositResponse = objectMapper.readValue(responseData,
+						WallexDepositResponse.class);
+				return WallexDepositResponse;
+			} catch (Exception e) {
+				logger.error("Error -> " + e);
+				return new WallexDepositResponse();
+			}
+		}
 }
