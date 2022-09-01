@@ -2,7 +2,9 @@ package com.bankservices.controllers;
 
 import java.util.Map;
 
+import org.json.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bankservices.dto.WallexWebhookDTO;
 import com.bankservices.middleware.WallexMiddleware;
 import com.bankservices.models.ResponseModel;
+import com.bankservices.response.WallexDepositResponse;
 import com.bankservices.services.WallexDataServices;
 import com.bankservices.utils.PropertiesManager;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/v1/wallex/webhook")
@@ -59,7 +65,7 @@ public class WallexWebhookController {
 
 	@PostMapping("/pushs")
 	public ResponseEntity<ResponseModel> vaPushs(@RequestHeader Map<String, String> allHeaders,
-			@RequestBody WallexWebhookDTO wallexWebhookDTO) {
+			@RequestBody WallexWebhookDTO wallexWebhookDTO) throws JsonMappingException, JsonProcessingException, ParseException {
 		logger.info("InSide Class Name :- " + getClass() + ", Method :- "
 				+ new Throwable().getStackTrace()[0].getMethodName());
 
@@ -74,10 +80,11 @@ public class WallexWebhookController {
 			logger.info("isWebhookValidRequest = " + isWebhookValidRequest.getBody().getErrorMessage());
 			return isWebhookValidRequest;
 		}
-		// String res = "{\"accountId\":\"9d2580ff-7307-4c7d-930e-694209a01f12\",\"amount\":994.46,\"sender\":{\"name\":\"Abhinav\",\"accountNumber\":\"6413481382\"},\"collectionAccountId\":\"4ed677f6-9ebf-470d-870a-3d1b2031757d\",\"amountOrigin\":1000,\"fee\":5.54,\"currency\":\"GBP\",\"id\":\"c4ae6c31-64e2-4786-8142-fa17429ee722\",\"paymentDetails\":{},\"status\":\"completed\",\"creditedAt\":\"2022-06-28T11:55:37Z\",\"paymentType\":\"swift\"}";
-		// ResponseModel rm = new ResponseModel();
-		// rm.setResult(wallexDataService.convertToWallexDepositResponse(res));
-		// return new ResponseEntity<>(rm, HttpStatus.OK);
-		return wallexDataService.callWebhook(allHeaders, wallexWebhookDTO);
+		String res = "{\"accountId\":\"9d2580ff-7307-4c7d-930e-694209a01f12\",\"amount\":994.46,\"sender\":{\"name\":\"Abhinav\",\"accountNumber\":\"6413481382\"},\"collectionAccountId\":\"4ed677f6-9ebf-470d-870a-3d1b2031757d\",\"amountOrigin\":1000,\"fee\":5.54,\"currency\":\"GBP\",\"id\":\"c4ae6c31-64e2-4786-8142-fa17429ee722\",\"paymentDetails\":{},\"status\":\"completed\",\"creditedAt\":\"2022-06-28T11:55:37Z\",\"paymentType\":\"swift\"}";
+		ResponseModel rm = new ResponseModel();
+		JSONObject json =  new JSONObject(res);
+		rm.setResult(wallexDataService.convertToWallexDepositResponse(json.toString()));
+		return new ResponseEntity<>(rm, HttpStatus.OK);
+//		return wallexDataService.callWebhook(allHeaders, wallexWebhookDTO);
 	}
 }

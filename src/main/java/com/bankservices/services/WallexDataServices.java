@@ -15,6 +15,7 @@ import org.apache.commons.io.FilenameUtils;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -1126,9 +1127,8 @@ public class WallexDataServices {
 
 			try {
 				ObjectMapper objectMapper = new ObjectMapper();
-				WallexDepositResponse WallexDepositResponse = objectMapper.readValue(responseData,
-						WallexDepositResponse.class);
-				return WallexDepositResponse;
+				WallexDepositResponse wallexDepositResponse = objectMapper.readValue(responseData,WallexDepositResponse.class);
+				return wallexDepositResponse;
 			} catch (Exception e) {
 				logger.error("Error -> " + e);
 				return new WallexDepositResponse();
